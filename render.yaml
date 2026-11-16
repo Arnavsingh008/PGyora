@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: pgyora-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate
+    startCommand: gunicorn pgyora.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: pgyora-api.onrender.com
+      - key: MONGODB_URI
+        sync: false
+      - key: DB_NAME
+        value: pgyora
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://pgyora-web.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://pgyora-web.onrender.com
+      - key: SESSION_COOKIE_NAME
+        value: student_sessionid
+      - key: ADMIN_SESSION_COOKIE_NAME
+        value: admin_sessionid
+
+  - type: static
+    name: pgyora-web
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://pgyora-api.onrender.com

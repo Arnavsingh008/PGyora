@@ -4,6 +4,35 @@ PGyora is a full-stack PG and co-living management platform for students and you
 
 This repository is prepared for local development and future deployment. It does not include production credentials, live deployment URLs, or external image storage.
 
+## Deploy to Render
+
+The root `render.yaml` defines two Render services:
+
+- `pgyora-api`: Django/Gunicorn API backed by MongoDB Atlas
+- `pgyora-web`: Vite static frontend
+
+### 1. Prepare MongoDB Atlas
+
+In MongoDB Atlas, create a database user, allow the Render outbound IP range (or temporarily allow `0.0.0.0/0` while testing), and copy the SRV connection string. Replace the password placeholder and URL-encode special password characters such as `@`, `:`, `/`, and `#`.
+
+Do not commit the connection string. In Render, set the backend `MONGODB_URI` environment variable to:
+
+```text
+mongodb+srv://USERNAME:PASSWORD@cluster0.ovtsvft.mongodb.net/
+```
+
+The database name is supplied separately as `DB_NAME=pgyora`.
+
+### 2. Create the Render services
+
+In Render, choose **New > Blueprint**, connect the repository, and select the root `render.yaml`. The Blueprint generates a production secret and asks for the sensitive `MONGODB_URI` value. Deploy `pgyora-api` and `pgyora-web` together.
+
+If you rename either service or attach a custom domain, update `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, and `VITE_API_BASE_URL` in the Render environment settings to match the final public URLs. `VITE_API_BASE_URL` is a frontend build-time variable, so redeploy the static site after changing it.
+
+### 3. Local and production environment files
+
+Local development continues to use `backend/.env.local` and `frontend/.env.development`. Production examples are available in `backend/.env.production.example` and `frontend/.env.production.example`. Django selects `.env.production` only when `DJANGO_ENV=production`; Render supplies these values as environment variables, so no production secret file is required in the repository.
+
 ## Features
 
 - Dynamic responsive React landing page with animated discovery sections
