@@ -4,7 +4,7 @@ import {
   Home, ArrowRight, Search, MapPin, ShieldCheck,
   Sparkles, BedDouble, Star, CheckCircle2, LogOut,
   Menu, X, CalendarDays, Wrench,
-  LayoutDashboard, Eye, EyeOff
+  LayoutDashboard, Eye, EyeOff, Mail, Phone, Clock
 } from "lucide-react";
 
 import api, { initialiseCsrf } from "./services/api";
@@ -158,6 +158,13 @@ export default function App() {
     room: "",
     subject: "",
     description: ""
+  });
+
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: ""
   });
 
   const navigate = (destination) => {
@@ -540,6 +547,9 @@ const saveProfile = async (event) => {
             <button onClick={() => navigateToHomeSection("why-pgyora")}>
               Why PGyora
             </button>
+            <button onClick={() => navigate("contact")}>
+              Contact
+            </button>
           </nav>
 
           <div className="navbar-actions">
@@ -834,6 +844,125 @@ const saveProfile = async (event) => {
           </section>
 
         </>
+      )}
+
+      {/* LOGIN AND SIGNUP */}
+      {page === "contact" && (
+        <main className="contact-page">
+          <section className="contact-hero">
+            <div className="site-container contact-hero-content">
+              <span className="section-label">WE ARE HERE TO HELP</span>
+              <h1>Let’s make your next move <em>easier.</em></h1>
+              <p>
+                Have a question about a room, booking request or your
+                PGyora account? Send us a message and our support team
+                will help you find the right next step.
+              </p>
+            </div>
+          </section>
+
+          <section className="site-container contact-content">
+            <div className="contact-info">
+              <span className="section-label">CONTACT PGYORA</span>
+              <h2>Support that feels <em>human.</em></h2>
+              <p>
+                We keep the process simple, transparent and easy to
+                follow—from your first question to move-in day.
+              </p>
+
+              <div className="contact-info-list">
+                <a href="mailto:support@pgyora.com">
+                  <span><Mail size={19} /></span>
+                  <div><strong>Email us</strong><small>support@pgyora.com</small></div>
+                </a>
+                <a href="tel:+911800123456">
+                  <span><Phone size={19} /></span>
+                  <div><strong>Call support</strong><small>+91 1800 123 456</small></div>
+                </a>
+                <div>
+                  <span><Clock size={19} /></span>
+                  <div><strong>Support hours</strong><small>Mon–Sat · 9:00 AM–7:00 PM</small></div>
+                </div>
+              </div>
+
+              <div className="contact-faq">
+                <strong>Looking for a quick answer?</strong>
+                <p>Check your dashboard for booking updates, room details and complaint status.</p>
+                <button className="link-arrow" onClick={() => navigate(user ? "dashboard" : "login")}>
+                  {user ? "Open my dashboard" : "Log in to your account"} <ArrowRight size={17} />
+                </button>
+              </div>
+            </div>
+
+            <form
+              className="contact-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const subject = encodeURIComponent(contactForm.subject || "PGyora support request");
+                const body = encodeURIComponent(
+                  `Name: ${contactForm.name}\nEmail: ${contactForm.email}\n\n${contactForm.message}`
+                );
+                window.location.href = `mailto:support@pgyora.com?subject=${subject}&body=${body}`;
+                setMessage("Your email app is opening with the message prepared.");
+              }}
+            >
+              <h2>Send us a message</h2>
+              <p>We usually reply within one business day.</p>
+
+              <div className="form-two-columns">
+                <label>
+                  Your name
+                  <input
+                    required
+                    value={contactForm.name}
+                    onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })}
+                    placeholder="Your name"
+                  />
+                </label>
+                <label>
+                  Email address
+                  <input
+                    required
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })}
+                    placeholder="you@example.com"
+                  />
+                </label>
+              </div>
+
+              <label>
+                What can we help with?
+                <select
+                  required
+                  value={contactForm.subject}
+                  onChange={(event) => setContactForm({ ...contactForm, subject: event.target.value })}
+                >
+                  <option value="">Select a topic</option>
+                  <option value="Room availability">Room availability</option>
+                  <option value="Booking request">Booking request</option>
+                  <option value="Account help">Account help</option>
+                  <option value="General question">General question</option>
+                </select>
+              </label>
+
+              <label>
+                Message
+                <textarea
+                  required
+                  rows="6"
+                  value={contactForm.message}
+                  onChange={(event) => setContactForm({ ...contactForm, message: event.target.value })}
+                  placeholder="Tell us a little more..."
+                />
+              </label>
+
+              <button className="coral-btn" type="submit">
+                Send message <ArrowRight size={17} />
+              </button>
+            </form>
+          </section>
+        </main>
       )}
 
       {/* LOGIN AND SIGNUP */}
@@ -1653,6 +1782,9 @@ const saveProfile = async (event) => {
             </button>
             <button onClick={() => navigate("finder")}>
               Smart Room Finder
+            </button>
+            <button onClick={() => navigate("contact")}>
+              Contact us
             </button>
           </div>
 
