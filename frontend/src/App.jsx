@@ -458,6 +458,7 @@ const saveProfile = async (event) => {
     try {
       await api.post("/api/bookings/", { room: roomId });
       setMessage("Booking request submitted successfully!");
+      await loadRooms();
       await loadDashboard();
     } catch (error) {
       setMessage(getError(error));
