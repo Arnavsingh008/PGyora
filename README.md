@@ -2,7 +2,7 @@
 
 PGyora is a full-stack PG and co-living management platform for students and young professionals. Users can discover available rooms, compare facilities, submit booking requests, and track complaints from one interface. The frontend is designed as a dynamic accommodation discovery experience rather than a static CRUD dashboard.
 
-This repository is prepared for local development and future deployment. It does not include production credentials, live deployment URLs, or external image storage.
+This repository supports local development and production deployment on Render. It does not include production credentials, or external image storage.
 
 ## Deploy to Render
 
@@ -28,6 +28,22 @@ The database name is supplied separately as `DB_NAME=pgyora`.
 In Render, choose **New > Blueprint**, connect the repository, and select the root `render.yaml`. The Blueprint generates a production secret and asks for the sensitive `MONGODB_URI` value. Deploy `pgyora-api` and `pgyora-web` together.
 
 If you rename either service or attach a custom domain, update `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, and `VITE_API_BASE_URL` in the Render environment settings to match the final public URLs. `VITE_API_BASE_URL` is a frontend build-time variable, so redeploy the static site after changing it.
+
+The default public URLs are:
+
+```text
+Frontend: https://pgyora-web.onrender.com
+Backend:  https://pgyora-api.onrender.com
+Admin:    https://pgyora-api.onrender.com/admin/
+```
+
+After deployment, verify the backend health endpoint:
+
+```text
+https://pgyora-api.onrender.com/
+```
+
+It should return a JSON response with `"status": "running"`.
 
 ### 3. Local and production environment files
 
@@ -83,7 +99,9 @@ PGyora/
 │   ├── src/
 │   ├── .env.example
 │   ├── index.html
-│   └── package.json
+│   ├── package.json
+│   └── package-lock.json
+├── render.yaml
 ├── .gitignore
 └── README.md
 ```
@@ -171,7 +189,17 @@ Students sign in through the React application. Admin users sign in through:
 http://localhost:8000/admin/
 ```
 
-The frontend sends cookies with Axios and obtains a CSRF cookie before protected write requests.
+The frontend sends cookies with Axios and obtains a CSRF token before protected write requests. Because the production frontend and API use different Render subdomains, `/api/accounts/csrf/` returns the token in JSON and the frontend sends it in the `X-CSRFToken` header. This avoids relying on JavaScript access to an API-domain cookie.
+
+If authentication or booking fails after deployment:
+
+1. Confirm the latest frontend and backend deployments both completed successfully.
+2. Clear site data for `pgyora-web.onrender.com` and `pgyora-api.onrender.com`.
+3. Hard-refresh the frontend with `Ctrl+Shift+R`.
+4. Confirm `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` exactly match the frontend URL.
+5. Confirm `MONGODB_URI` is set as a Render secret and the Atlas network access rule allows Render.
+
+The `403 Authentication credentials were not provided` response from `/api/accounts/profile/` is expected before a student logs in. Admin users must use the Django Admin URL rather than the student login form.
 
 ## API overview
 
@@ -258,4 +286,4 @@ Full workflow testing should be performed with MongoDB running and test data ava
 
 ## Deployment notes
 
-The project is structured for future deployment but is not tied to a specific hosting provider. Deployment requires a Django-compatible Python host, a reachable MongoDB Atlas cluster, environment variables, HTTPS, static-file handling, and a separately hosted frontend.
+Render deployment is defined in [render.yaml](render.yaml). The backend uses Gunicorn and WhiteNoise, runs `collectstatic`, and applies MongoDB-backed migrations during the Render build. The frontend uses `npm ci` and Vite's production build. Keep the frontend lockfile committed so clean Render builds remain reproducible.
