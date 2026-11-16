@@ -1,12 +1,22 @@
+
 services:
-  # Django Backend
+
+  # ==========================================
+  # PGYORA DJANGO BACKEND
+  # ==========================================
   - type: web
     name: pgyora-api
     runtime: python
+    plan: free
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate
+
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      python manage.py collectstatic --noinput &&
+      python manage.py migrate
+
     startCommand: gunicorn pgyora.wsgi:application --bind 0.0.0.0:$PORT
-    healthCheckPath: /
+
     envVars:
       - key: DJANGO_ENV
         value: production
@@ -20,31 +30,41 @@ services:
       - key: ALLOWED_HOSTS
         value: pgyora-api.onrender.com
 
+      # MongoDB Atlas connection string
+      # Render will ask you to enter this secret.
       - key: MONGODB_URI
         sync: false
 
       - key: DB_NAME
         value: pgyora
 
+      # React frontend URL
       - key: CORS_ALLOWED_ORIGINS
         value: https://pgyora-web.onrender.com
 
       - key: CSRF_TRUSTED_ORIGINS
         value: https://pgyora-web.onrender.com
 
+      # Preserve existing separate sessions
       - key: SESSION_COOKIE_NAME
         value: student_sessionid
 
       - key: ADMIN_SESSION_COOKIE_NAME
         value: admin_sessionid
 
-  # React Frontend
+
+  # ==========================================
+  # PGYORA REACT FRONTEND
+  # ==========================================
   - type: web
     name: pgyora-web
     runtime: static
     rootDir: frontend
+
     buildCommand: npm ci && npm run build
+
     staticPublishPath: dist
+
     envVars:
       - key: VITE_API_BASE_URL
         value: https://pgyora-api.onrender.com
