@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 from rest_framework.decorators import api_view, permission_classes
@@ -12,7 +13,7 @@ from .serializers import RegisterSerializer
 @ensure_csrf_cookie
 @require_GET
 def csrf_cookie(request):
-    return JsonResponse({"detail": "CSRF cookie set"})
+    return JsonResponse({"detail": "CSRF cookie set", "csrfToken": get_token(request)})
 
 @api_view(["POST"])
 @permission_classes([AllowAny])

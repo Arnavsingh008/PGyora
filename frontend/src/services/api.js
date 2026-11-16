@@ -1,5 +1,7 @@
 import axios from "axios";
 
+let csrfToken = "";
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000",
   withCredentials: true,
@@ -15,12 +17,13 @@ function getCookie(name) {
 api.interceptors.request.use((config) => {
   const method = (config.method || "get").toLowerCase();
   if (!["get", "head", "options", "trace"].includes(method)) {
-    config.headers["X-CSRFToken"] = getCookie("csrftoken");
+    config.headers["X-CSRFToken"] = csrfToken || getCookie("csrftoken");
   }
   return config;
 });
 
 export async function initialiseCsrf() {
-  await api.get("/api/accounts/csrf/");
+  const response = await api.get("/api/accounts/csrf/");
+  csrfToken = response.data.csrfToken || "";
 }
 export default api;
