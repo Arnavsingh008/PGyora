@@ -415,6 +415,7 @@ const saveProfile = async (event) => {
 
   try {
     setProfileSaving(true);
+    await initialiseCsrf();
     const response = await api.patch(
       "/api/accounts/profile/",
       profileForm
@@ -431,6 +432,7 @@ const saveProfile = async (event) => {
 
   const logout = async () => {
     try {
+      await initialiseCsrf();
       await api.post("/api/accounts/logout/");
     } catch {
       // Clear the local interface even if logout fails.
@@ -519,6 +521,7 @@ const saveProfile = async (event) => {
     }
 
     try {
+      await initialiseCsrf();
       await api.post("/api/bookings/", { room: roomId });
       setMessage("Booking request submitted successfully!");
       await loadRooms();
@@ -533,9 +536,7 @@ const saveProfile = async (event) => {
       const endpoint = action === "cancel"
         ? `/api/bookings/${id}/cancel/`
         : `/api/bookings/${id}/${action}/`;
-      if (action === "cancel") {
-        await initialiseCsrf();
-      }
+      await initialiseCsrf();
       await api.post(endpoint);
       await loadDashboard();
       await loadRooms();
@@ -549,6 +550,7 @@ const saveProfile = async (event) => {
     event.preventDefault();
 
     try {
+      await initialiseCsrf();
       await api.post("/api/complaints/", {
         ...complaintForm,
         room: complaintForm.room || null
@@ -569,6 +571,7 @@ const saveProfile = async (event) => {
 
   const updateComplaint = async (id, status) => {
     try {
+      await initialiseCsrf();
       await api.patch(`/api/complaints/${id}/`, { status });
       await loadDashboard();
       setMessage("Complaint status updated.");
