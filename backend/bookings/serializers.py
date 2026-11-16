@@ -29,7 +29,8 @@ class BookingSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "student",
             "status",
-            "booking_date"
+            "booking_date",
+            "bed_reserved"
         ]
 
 

@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import F
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -18,12 +19,25 @@ def bookings(request):
         qs = Booking.objects.all() if request.user.is_staff else Booking.objects.filter(student=request.user)
         return Response(BookingSerializer(qs, many=True).data)
     room = get_object_or_404(Room, pk=request.data.get("room"))
-    if room.available_beds < 1 or not room.is_active:
+    if room.available_beds < 1 or not room.is_active or not room.property.is_active:
         return Response({"message": "No beds are currently available"}, status=400)
     existing = Booking.objects.filter(student=request.user, room=room, status__in=["pending", "approved"])
     if existing.exists():
         return Response({"message": "You already have an active request for this room"}, status=400)
-    booking = Booking.objects.create(student=request.user, room=room)
+
+    reserved = Room.objects.filter(
+        pk=room.pk,
+        is_active=True,
+        available_beds__gt=0,
+    ).update(available_beds=F("available_beds") - 1)
+    if not reserved:
+        return Response({"message": "No beds are currently available"}, status=400)
+
+    booking = Booking.objects.create(
+        student=request.user,
+        room=room,
+        bed_reserved=True,
+    )
     return Response(BookingSerializer(booking).data, status=201)
 
 @api_view(["POST"])
@@ -36,14 +50,22 @@ def booking_action(request, pk, action):
     if action == "approve":
         if booking.status != "pending":
             return Response({"message": "Only pending bookings can be approved"}, status=400)
-        if room.available_beds < 1:
-            return Response({"message": "No beds available"}, status=400)
-        room.available_beds -= 1
-        room.save()
+        if not booking.bed_reserved:
+            reserved = Room.objects.filter(
+                pk=room.pk,
+                is_active=True,
+                available_beds__gt=0,
+            ).update(available_beds=F("available_beds") - 1)
+            if not reserved:
+                return Response({"message": "No beds available"}, status=400)
+            booking.bed_reserved = True
         booking.status = "approved"
     elif action == "reject":
         if booking.status != "pending":
             return Response({"message": "Only pending bookings can be rejected"}, status=400)
+        if booking.bed_reserved:
+            Room.objects.filter(pk=room.pk).update(available_beds=F("available_beds") + 1)
+            booking.bed_reserved = False
         booking.status = "rejected"
     else:
         return Response({"message": "Unknown action"}, status=400)
@@ -63,9 +85,11 @@ def cancel_booking(request, pk):
         )
     if booking.status not in ["pending", "approved"]:
         return Response({"message": "This booking cannot be cancelled"}, status=400)
-    if booking.status == "approved":
-        booking.room.available_beds += 1
-        booking.room.save()
+    if booking.bed_reserved:
+        Room.objects.filter(pk=booking.room.pk).update(
+            available_beds=F("available_beds") + 1
+        )
+        booking.bed_reserved = False
     booking.status = "cancelled"
     booking.save()
     return Response(BookingSerializer(booking).data)
