@@ -1,0 +1,199 @@
+# PGyora
+
+PGyora is a full-stack PG and co-living management platform for students and young professionals. Users can discover available rooms, compare facilities, submit booking requests, and track complaints from one interface.
+
+This repository is prepared for local development and future deployment. It does not include production credentials, live deployment URLs, or external image storage.
+
+## Features
+
+- Professional responsive React landing page and room browsing
+- Student registration, login, logout, and editable profile
+- Django session authentication with CSRF protection
+- Separate student and Django Admin session cookies
+- MongoDB-backed property and room listings
+- Location, budget, and sharing-type filters
+- Rule-based Smart Room Finder with match percentages
+- Room details with facilities and live availability
+- Booking requests, cancellation, approval, and rejection
+- Full rooms hidden from public listings
+- Complaint submission and complaint status tracking
+- Django Admin management for users, properties, rooms, bookings, and complaints
+- Django-rendered examples for templates, forms, CSRF, and POST-redirect-GET
+
+## Technology stack
+
+- **Frontend:** React 18, Vite, Axios, Bootstrap, Lucide React
+- **Backend:** Django 5.2, Django REST Framework
+- **Database:** MongoDB through the official `django-mongodb-backend`
+- **Authentication:** Django sessions; no JWT
+- **Runtime:** Python 3.12 and Node.js 20+
+
+## Project structure
+
+```text
+PGyora/
+├── backend/
+│   ├── accounts/
+│   ├── bookings/
+│   ├── properties/
+│   ├── pgyora/
+│   ├── templates/
+│   ├── .env.example
+│   ├── manage.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   ├── .env.example
+│   ├── index.html
+│   └── package.json
+├── .gitignore
+└── README.md
+```
+
+## Prerequisites
+
+- Python 3.12
+- Node.js 20 or later
+- MongoDB Community Server, or a MongoDB Atlas cluster
+- Git
+
+MongoDB Compass is optional. It is a GUI client, not the database server.
+
+## Setup on Windows
+
+### Clone the repository
+
+```cmd
+git clone <your-github-repository-url>
+cd PGyora
+```
+
+### Configure the backend
+
+```cmd
+cd backend
+py -3.12 -m venv venv
+venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+copy .env.example .env.local
+```
+
+Edit `backend\.env.local`:
+
+```env
+DJANGO_ENV=local
+DEBUG=True
+SECRET_KEY=replace-this-for-local-development
+ALLOWED_HOSTS=127.0.0.1,localhost
+MONGODB_URI=mongodb://localhost:27017/
+DB_NAME=pgyora
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+CSRF_TRUSTED_ORIGINS=http://localhost:5173
+SESSION_COOKIE_NAME=student_sessionid
+ADMIN_SESSION_COOKIE_NAME=admin_sessionid
+```
+
+Never commit `.env.local` or real credentials.
+
+### Prepare the database
+
+Make sure MongoDB is running:
+
+```cmd
+python manage.py check
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+The project uses MongoDB ObjectIds through `django-mongodb-backend`. Do not replace it with SQLite, PostgreSQL, or Djongo.
+
+### Configure the frontend
+
+Open a second terminal:
+
+```cmd
+cd frontend
+npm install
+copy .env.example .env.development
+npm run dev
+```
+
+Frontend: <http://localhost:5173/>  
+Backend: <http://localhost:8000/>  
+Django Admin: <http://localhost:8000/admin/>
+
+## Authentication and sessions
+
+Student authentication uses the React API and the `student_sessionid` cookie. Django Admin uses the separate `admin_sessionid` cookie, so logging in as an admin does not replace a student session in the same browser.
+
+Students sign in through the React application. Admin users sign in through:
+
+```text
+http://localhost:8000/admin/
+```
+
+The frontend sends cookies with Axios and obtains a CSRF cookie before protected write requests.
+
+## API overview
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/accounts/csrf/` | Set the CSRF cookie |
+| POST | `/api/accounts/register/` | Register a student |
+| POST | `/api/accounts/login/` | Log in a student |
+| POST | `/api/accounts/logout/` | Log out |
+| GET/PATCH | `/api/accounts/profile/` | Read or update the student profile |
+| GET | `/api/properties/` | List active properties |
+| GET | `/api/rooms/` | List available rooms with filters |
+| POST | `/api/rooms/find/` | Get rule-based recommendations |
+| GET/POST | `/api/bookings/` | List or create booking requests |
+| POST | `/api/bookings/<id>/cancel/` | Cancel an owned booking |
+| POST | `/api/bookings/<id>/approve/` | Admin approval |
+| POST | `/api/bookings/<id>/reject/` | Admin rejection |
+| GET/POST | `/api/complaints/` | List or create complaints |
+| PATCH | `/api/complaints/<id>/` | Admin complaint status update |
+
+ObjectIds are converted to strings in API responses before they reach React.
+
+## Django syllabus coverage
+
+- **Unit 1:** `manage.py`, `pgyora/`, Django apps, and requirements
+- **Unit 2:** API views, URL routing, URL parameters, JSON responses, and error handling
+- **Unit 3:** `backend/templates/base.html`, room detail template, template inheritance, loops, and conditionals
+- **Unit 4:** `DjangoComplaintForm`, POST handling, validation, CSRF, messages, and redirect after submission
+- **Unit 5:** MongoDB-backed models, migrations, relationships, Django Admin, users, and permissions
+- **Unit 6:** login, logout, sessions, cookies, CSRF, and authentication middleware
+
+## Validation
+
+Backend:
+
+```cmd
+cd backend
+venv\Scripts\python.exe manage.py check
+```
+
+Frontend:
+
+```cmd
+cd frontend
+npm run build
+```
+
+The repository includes basic Django tests. Full workflow testing should be performed with MongoDB running and test data available.
+
+## GitHub and security checklist
+
+- Keep `.env.local`, `.env.production`, credentials, virtual environments, `node_modules`, build output, and logs out of Git.
+- Commit `.env.example` files only.
+- Replace the development `SECRET_KEY` before deployment.
+- Store MongoDB Atlas credentials in the hosting provider's secret manager.
+- Set `DEBUG=False` in production.
+- Configure production `ALLOWED_HOSTS`, CORS, CSRF trusted origins, HTTPS, and secure cookies.
+- Use backups, monitoring, rate limiting, and stronger concurrency controls before public production use.
+- Do not commit uploaded media or private user data.
+
+## Deployment notes
+
+The project is structured for future deployment but is not tied to a specific hosting provider. Deployment requires a Django-compatible Python host, a reachable MongoDB Atlas cluster, environment variables, HTTPS, static-file handling, and a separately hosted frontend.

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ room.property.name }} - Room {{ room.room_number }}</h1>
+  <h1>{{ room.property.name }} - Room {{ room.room_number }}</h1>
+  <p>Location: {{ room.property.location }}</p>
+  <p>Type: {{ room.get_room_type_display }}</p>
+  <p>Monthly price: ₹{{ room.price }}</p>
+  {% if room.available_beds > 0 %}
+    <p>Availability: Beds available</p>
+  {% else %}
+    <p>Availability: Fully occupied</p>
+  {% endif %}
+  <h2>Facilities</h2>
+  <ul>{% for facility in room.facilities %}<li>{{ facility }}</li>{% empty %}<li>No facilities listed</li>{% endfor %}</ul>
+{% endblock %}
