@@ -56,6 +56,12 @@ def rooms_list(request):
         location = request.query_params.get("location")
         max_price = request.query_params.get("max_price")
         room_type = request.query_params.get("room_type")
+        facilities = [
+            item.strip().lower()
+            for item in request.query_params.get("facilities", "").split(",")
+            if item.strip()
+        ]
+        sort = request.query_params.get("sort", "")
         if location:
             qs = qs.filter(property__location__icontains=location)
         if max_price:
@@ -65,7 +71,21 @@ def rooms_list(request):
                 return Response({"message": "max_price must be a number"}, status=400)
         if room_type:
             qs = qs.filter(room_type=room_type)
-        return Response(RoomSerializer(qs, many=True).data)
+        rooms = [
+            room for room in qs
+            if not facilities
+            or all(
+                requested in {str(item).strip().lower() for item in (room.facilities or [])}
+                for requested in facilities
+            )
+        ]
+        if sort == "price_asc":
+            rooms.sort(key=lambda room: room.price)
+        elif sort == "price_desc":
+            rooms.sort(key=lambda room: room.price, reverse=True)
+        elif sort == "availability":
+            rooms.sort(key=lambda room: room.available_beds, reverse=True)
+        return Response(RoomSerializer(rooms, many=True).data)
     if not is_admin(request.user):
         return Response({"message": "Admin access required"}, status=403)
     serializer = RoomSerializer(data=request.data)
@@ -110,11 +130,27 @@ def smart_room_finder(request):
         qs = qs.filter(room_type=room_type)
     results = []
     for room in qs:
-        available = set(room.facilities or [])
-        wanted = set(facilities or [])
-        score = 100 if not wanted else round(len(available & wanted) / len(wanted) * 100)
+        available = {str(item).strip().lower() for item in (room.facilities or [])}
+        wanted = {str(item).strip().lower() for item in (facilities or [])}
+        facility_score = 100 if not wanted else round(
+            len(available & wanted) / len(wanted) * 100
+        )
+        sharing_score = 100 if room_type else 50
+        score = round((facility_score * 0.4) + (sharing_score * 0.2) + 40)
         data = RoomSerializer(room).data
         data["match_percentage"] = score
+        data["budget_fit"] = True
+        data["sharing_match"] = sharing_score
+        data["facility_match"] = facility_score
+        data["match_reasons"] = []
+        if max_price not in (None, ""):
+            data["match_reasons"].append("Fits within your selected budget")
+        if room_type:
+            data["match_reasons"].append("Matches your sharing preference")
+        for facility in sorted(wanted & available):
+            data["match_reasons"].append(f"Includes {facility}")
+        if not data["match_reasons"]:
+            data["match_reasons"].append("Available in your selected location")
         results.append(data)
     results.sort(key=lambda x: x["match_percentage"], reverse=True)
     return Response(results)

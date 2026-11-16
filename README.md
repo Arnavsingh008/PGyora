@@ -1,22 +1,31 @@
 # PGyora
 
-PGyora is a full-stack PG and co-living management platform for students and young professionals. Users can discover available rooms, compare facilities, submit booking requests, and track complaints from one interface.
+PGyora is a full-stack PG and co-living management platform for students and young professionals. Users can discover available rooms, compare facilities, submit booking requests, and track complaints from one interface. The frontend is designed as a dynamic accommodation discovery experience rather than a static CRUD dashboard.
 
 This repository is prepared for local development and future deployment. It does not include production credentials, live deployment URLs, or external image storage.
 
 ## Features
 
-- Professional responsive React landing page and room browsing
+- Dynamic responsive React landing page with animated discovery sections
+- Real-time homepage metrics for open rooms, beds, prices, and locations
+- Dynamic room-type and location exploration generated from API data
+- Scroll-reveal animations, hover interactions, reduced-motion support, and loading states
 - Student registration, login, logout, and editable profile
 - Django session authentication with CSRF protection
 - Separate student and Django Admin session cookies
 - MongoDB-backed property and room listings
 - Location, budget, and sharing-type filters
 - Rule-based Smart Room Finder with match percentages
+- Guided four-step Smart Finder with transparent match reasons
 - Room details with facilities and live availability
+- Explore filtering by facilities, price, sharing type, and available beds
+- Explore sorting by price low-to-high, high-to-low, or available beds
 - Booking requests, cancellation, approval, and rejection
 - Full rooms hidden from public listings
+- Capacity-safe reservations that prevent room overbooking
 - Complaint submission and complaint status tracking
+- Contact and support page with email-client handoff and dashboard shortcut
+- Dashboard quick actions, booking dates, and pending-request statistics
 - Django Admin management for users, properties, rooms, bookings, and complaints
 - Django-rendered examples for templates, forms, CSRF, and POST-redirect-GET
 
@@ -145,7 +154,7 @@ The frontend sends cookies with Axios and obtains a CSRF cookie before protected
 | POST | `/api/accounts/logout/` | Log out |
 | GET/PATCH | `/api/accounts/profile/` | Read or update the student profile |
 | GET | `/api/properties/` | List active properties |
-| GET | `/api/rooms/` | List available rooms with filters |
+| GET | `/api/rooms/` | List available rooms with location, price, sharing, facility, and sort filters |
 | POST | `/api/rooms/find/` | Get rule-based recommendations |
 | GET/POST | `/api/bookings/` | List or create booking requests |
 | POST | `/api/bookings/<id>/cancel/` | Cancel an owned booking |
@@ -155,6 +164,16 @@ The frontend sends cookies with Axios and obtains a CSRF cookie before protected
 | PATCH | `/api/complaints/<id>/` | Admin complaint status update |
 
 ObjectIds are converted to strings in API responses before they reach React.
+
+### Room listing query parameters
+
+The room listing endpoint supports combined filters:
+
+```text
+/api/rooms/?location=Phagwara&max_price=8000&room_type=double&facilities=WiFi,AC&sort=price_asc
+```
+
+Supported `sort` values are `price_asc`, `price_desc`, and `availability`.
 
 ## Django syllabus coverage
 
@@ -181,7 +200,21 @@ cd frontend
 npm run build
 ```
 
-The repository includes basic Django tests. Full workflow testing should be performed with MongoDB running and test data available.
+The repository includes Django model, capacity, filtering, and Smart Finder regression tests:
+
+```cmd
+cd backend
+venv\Scripts\python.exe manage.py test
+```
+
+Full workflow testing should be performed with MongoDB running and test data available.
+
+## Known limitations
+
+- The Contact form prepares a message in the visitor's default email client; it does not store messages in MongoDB.
+- Smart Finder recommendations are transparent rule-based matches, not machine-learning predictions.
+- Room records currently support one property image URL; missing or failed images use an accessible fallback.
+- Wishlist, room comparison, payments, ratings, and reviews are not enabled because they are not required by the current data model.
 
 ## GitHub and security checklist
 

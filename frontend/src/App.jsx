@@ -4,7 +4,7 @@ import {
   Home, ArrowRight, Search, MapPin, ShieldCheck,
   Sparkles, BedDouble, Star, CheckCircle2, LogOut,
   Menu, X, CalendarDays, Wrench,
-  LayoutDashboard, Eye, EyeOff, Mail, Phone, Clock
+  LayoutDashboard, Eye, EyeOff, Mail, Phone, Clock, ArrowUpRight
 } from "lucide-react";
 
 import api, { initialiseCsrf } from "./services/api";
@@ -35,6 +35,7 @@ function RoomCard({ room, onBook, onView }) {
           <img
             src={room.image_url}
             alt={room.property_name || "PG accommodation"}
+            loading="lazy"
             onError={() => setImageFailed(true)}
           />
         ) : (
@@ -77,6 +78,13 @@ function RoomCard({ room, onBook, onView }) {
           </span>
         </div>
 
+        {room.match_reasons?.length > 0 && (
+          <div className="match-reasons">
+            <strong>{room.match_percentage >= 80 ? "Best match" : "Why it fits"}</strong>
+            <span>{room.match_reasons.slice(0, 2).join(" · ")}</span>
+          </div>
+        )}
+
         <div className="stay-facilities">
           {(room.facilities || []).slice(0, 4).map((facility) => (
             <span key={facility}>{facility}</span>
@@ -114,6 +122,7 @@ export default function App() {
   );
   const [user, setUser] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [roomsReady, setRoomsReady] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(() =>
     readSessionValue("pgyora_selected_room", null)
   );
@@ -144,7 +153,9 @@ export default function App() {
   const [filters, setFilters] = useState({
     location: "",
     max_price: "",
-    room_type: ""
+    room_type: "",
+    facilities: "",
+    sort: ""
   });
 
   const [finder, setFinder] = useState({
@@ -153,6 +164,7 @@ export default function App() {
     room_type: "",
     facilities: "WiFi, AC"
   });
+  const [finderStep, setFinderStep] = useState(1);
 
   const [complaintForm, setComplaintForm] = useState({
     room: "",
@@ -205,6 +217,29 @@ export default function App() {
       JSON.stringify(dashboardTab)
     );
   }, [dashboardTab]);
+
+  useEffect(() => {
+    const revealItems = document.querySelectorAll(".reveal-on-scroll");
+    if (!("IntersectionObserver" in window)) {
+      revealItems.forEach((item) => item.classList.add("is-visible"));
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+
+    revealItems.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, [page, rooms.length]);
 
   const viewRoom = (room) => {
     setSelectedRoom(room);
@@ -272,6 +307,7 @@ const getError = (error) => {
       setMessage(getError(error));
     } finally {
       setLoading(false);
+      setRoomsReady(true);
     }
   };
 
@@ -346,6 +382,7 @@ const handleAuth = async (event) => {
 
     const profileResponse = await api.get("/api/accounts/profile/");
     setUser(profileResponse.data);
+    await loadRooms();
 
     setAuth({
       username: "",
@@ -428,6 +465,30 @@ const saveProfile = async (event) => {
       ...finder,
       facilities: nextFacilities.join(", ")
     });
+  };
+
+  const advanceFinder = () => {
+    if (finderStep === 1 && !finder.location.trim()) {
+      setMessage("Please add a preferred location to continue.");
+      return;
+    }
+    if (finderStep === 2 && (!finder.max_price || Number(finder.max_price) <= 0)) {
+      setMessage("Please add a valid monthly budget to continue.");
+      return;
+    }
+    setMessage("");
+    setFinderStep((step) => Math.min(step + 1, 4));
+  };
+
+  const resetFinder = () => {
+    setFinder({
+      location: "",
+      max_price: "",
+      room_type: "",
+      facilities: "WiFi, AC"
+    });
+    setFinderStep(1);
+    setMessage("");
   };
 
   const findRooms = async (event) => {
@@ -529,9 +590,20 @@ const saveProfile = async (event) => {
             </span>
           </button>
 
-          <nav className={mobileMenu ? "nav-links open" : "nav-links"}>
-            <button onClick={() => navigate("home")}>Home</button>
+          <nav
+            aria-label="Primary navigation"
+            className={mobileMenu ? "nav-links open" : "nav-links"}
+          >
             <button
+              className={page === "home" ? "active" : ""}
+              aria-current={page === "home" ? "page" : undefined}
+              onClick={() => navigate("home")}
+            >
+              Home
+            </button>
+            <button
+              className={page === "explore" || page === "room" ? "active" : ""}
+              aria-current={page === "explore" || page === "room" ? "page" : undefined}
               onClick={() => {
                 loadRooms();
                 navigate("explore");
@@ -539,7 +611,11 @@ const saveProfile = async (event) => {
             >
               Explore stays
             </button>
-            <button onClick={() => navigate("finder")}>
+            <button
+              className={page === "finder" ? "active" : ""}
+              aria-current={page === "finder" ? "page" : undefined}
+              onClick={() => navigate("finder")}
+            >
               Smart Finder
             </button>
             <button onClick={() => navigateToHomeSection("how-it-works")}>
@@ -548,7 +624,11 @@ const saveProfile = async (event) => {
             <button onClick={() => navigateToHomeSection("why-pgyora")}>
               Why PGyora
             </button>
-            <button onClick={() => navigate("contact")}>
+            <button
+              className={page === "contact" ? "active" : ""}
+              aria-current={page === "contact" ? "page" : undefined}
+              onClick={() => navigate("contact")}
+            >
               Contact
             </button>
           </nav>
@@ -589,6 +669,8 @@ const saveProfile = async (event) => {
 
           <button
             className="mobile-menu-btn"
+            aria-label={mobileMenu ? "Close navigation" : "Open navigation"}
+            aria-expanded={mobileMenu}
             onClick={() => setMobileMenu(!mobileMenu)}
           >
             {mobileMenu ? <X /> : <Menu />}
@@ -608,240 +690,194 @@ const saveProfile = async (event) => {
       {/* LANDING PAGE */}
       {page === "home" && (
         <>
-          <section className="landing-hero">
-            <div className="site-container hero-layout">
-              <div className="hero-text">
-                <div className="hero-eyebrow">
-                  <Sparkles size={16} />
-                  THE SMARTER WAY TO STAY
-                </div>
+          <section className="orbit-hero">
+            <div className="orbit-grid" aria-hidden="true" />
+            <div className="site-container orbit-hero-layout">
+              <div className="orbit-copy">
+                <span className="orbit-kicker"><span /> PGYORA / LIVE DISCOVERY</span>
+                <h1>Find your place in the <em>next chapter.</em></h1>
+                <p>Search real availability, compare what matters, and request a room without the guesswork.</p>
 
-                <h1>
-                  Find a place that fits your{" "}
-                  <em>next chapter.</em>
-                </h1>
-
-                <p>
-                  Compare real rooms, understand what is included,
-                  and send a booking request with confidence.
-                </p>
-
-                <form className="hero-search" onSubmit={searchRooms}>
-                  <MapPin size={21} />
-
+                <form className="orbit-search" onSubmit={searchRooms}>
+                  <MapPin size={20} />
                   <input
-                    placeholder="Where do you want to stay?"
+                    aria-label="Search by location"
+                    placeholder="Search a city or campus"
                     value={filters.location}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        location: event.target.value
-                      })
-                    }
+                    onChange={(event) => setFilters({ ...filters, location: event.target.value })}
                   />
-
-                  <button type="submit" className="coral-btn">
-                    Explore stays <ArrowRight size={17} />
-                  </button>
+                  <button type="submit">Explore <ArrowRight size={17} /></button>
                 </form>
 
-                <div className="hero-trust">
-                  <div className="hero-avatars">
-                    <span>A</span>
-                    <span>S</span>
-                    <span>R</span>
-                    <span>M</span>
-                  </div>
-
-                  <div>
-                    <div className="hero-stars">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star key={star} size={14} fill="currentColor" />
-                      ))}
-                    </div>
-                    <small>
-                      Made for students & young professionals
-                    </small>
-                  </div>
+                <div className="orbit-actions">
+                  <button onClick={() => navigate("finder")}><Sparkles size={15} /> Build my shortlist</button>
+                  <button onClick={() => navigateToHomeSection("live-stays")}>See live stays <ArrowRight size={15} /></button>
                 </div>
 
-                <div className="hero-quick-links">
-                  <button onClick={() => navigate("explore")}>
-                    Browse live rooms <ArrowRight size={14} />
-                  </button>
-                  <button onClick={() => navigate("finder")}>
-                    Find my best match <Sparkles size={14} />
-                  </button>
-                </div>
-
-                <div className="hero-metrics">
-                  <div>
-                    <strong>{rooms.length || "—"}</strong>
-                    <span>rooms to explore</span>
-                  </div>
-                  <div>
-                    <strong>
-                      {rooms.reduce(
-                        (total, room) => total + Number(room.available_beds || 0),
-                        0
-                      ) || "—"}
-                    </strong>
-                    <span>beds currently open</span>
-                  </div>
+                <div className="orbit-stat-row">
+                  <div><strong>{roomsReady ? rooms.length : "..."}</strong><span>open rooms</span></div>
+                  <div><strong>{roomsReady ? (rooms.reduce((total, room) => total + Number(room.available_beds || 0), 0) || 0) : "..."}</strong><span>beds available</span></div>
+                  <div><strong>{roomsReady ? (new Set(rooms.map((room) => room.location).filter(Boolean)).size || 0) : "..."}</strong><span>locations</span></div>
                 </div>
               </div>
 
-              <div className="hero-photo">
-                <img
-                  src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop"
-                  alt="Modern furnished accommodation"
-                />
-
-                <div className="floating-card floating-top">
-                  <span className="floating-icon">
-                    <Sparkles size={20} />
-                  </span>
-                  <div>
-                    <strong>Smart matching</strong>
-                    <small>Find your perfect fit</small>
-                  </div>
+              <div className="orbit-stage">
+                <div className="orbit-ring ring-one" />
+                <div className="orbit-ring ring-two" />
+                <div className="orbit-image">
+                  <img
+                    src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop"
+                    alt="Modern furnished PG accommodation"
+                  />
                 </div>
-
-                <div className="floating-card floating-bottom">
-                  <span className="floating-icon green">
-                    <CheckCircle2 size={20} />
-                  </span>
-                  <div>
-                    <strong>Move in with confidence</strong>
-                    <small>Everything in one place</small>
-                  </div>
+                <div className="orbit-live-card">
+                  <span className="live-dot" />
+                  <div><strong>Live availability</strong><small>Updated from your rooms</small></div>
+                </div>
+                <div className="orbit-price-card">
+                  <small>Starting from</small>
+                  <strong>{roomsReady ? (rooms.length ? money(Math.min(...rooms.map((room) => Number(room.price || 0)).filter(Boolean))) : "No rooms") : "Loading..."}</strong>
+                  <span>per month</span>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="trust-bar">
-            <div className="site-container trust-items">
+          <section className="signal-strip">
+            <div className="site-container signal-items">
               <span><ShieldCheck /> Safe booking requests</span>
-              <span><Sparkles /> Personalised matching</span>
-              <span><BedDouble /> Live room availability</span>
-              <span><Wrench /> Support after move-in</span>
+              <span><Sparkles /> Rule-based smart matching</span>
+              <span><BedDouble /> Capacity-aware availability</span>
+              <span><Wrench /> Support when you need it</span>
             </div>
           </section>
 
-          <section id="why-pgyora" className="site-container home-value-section">
+          <section id="live-stays" className="site-container live-stays-section reveal-on-scroll">
             <div className="section-heading">
               <div>
-                <span className="section-label">A BETTER WAY TO FIND A PG</span>
-                <h2>Everything you need to choose <em>well.</em></h2>
+                <span className="section-label">LIVE ON PGYORA</span>
+                <h2>Make your shortlist <em>feel real.</em></h2>
+                <p>Every card below reflects rooms currently returned by the platform.</p>
               </div>
-              <p className="section-heading-note">
-                Less guesswork. More confidence before you move in.
-              </p>
-            </div>
-
-            <div className="value-grid">
-              <article className="value-card">
-                <span className="value-icon coral"><Search size={21} /></span>
-                <h3>Search your way</h3>
-                <p>Filter by location, budget, sharing type and the facilities that matter to you.</p>
-              </article>
-              <article className="value-card">
-                <span className="value-icon green"><ShieldCheck size={21} /></span>
-                <h3>Know before you request</h3>
-                <p>See room details, availability, pricing and included facilities in one clear view.</p>
-              </article>
-              <article className="value-card">
-                <span className="value-icon gold"><CalendarDays size={21} /></span>
-                <h3>Manage your stay</h3>
-                <p>Track booking requests, approvals and support complaints from your dashboard.</p>
-              </article>
-            </div>
-          </section>
-
-          <section id="how-it-works" className="site-container home-process-section">
-            <div className="section-heading">
-              <div>
-                <span className="section-label">FROM SEARCH TO MOVE-IN</span>
-                <h2>Make a confident decision in <em>three steps.</em></h2>
-              </div>
-            </div>
-
-            <div className="process-grid">
-              <article className="process-card">
-                <span className="process-number">01</span>
-                <MapPin size={22} />
-                <h3>Choose your area</h3>
-                <p>Start with the location, commute or neighbourhood that works for your everyday life.</p>
-              </article>
-              <article className="process-card featured">
-                <span className="process-number">02</span>
-                <Search size={22} />
-                <h3>Compare real options</h3>
-                <p>Review pricing, sharing type, facilities and available beds before you send a request.</p>
-              </article>
-              <article className="process-card">
-                <span className="process-number">03</span>
-                <CheckCircle2 size={22} />
-                <h3>Request with clarity</h3>
-                <p>Track your booking status and keep your accommodation journey organised in one place.</p>
-              </article>
-            </div>
-          </section>
-
-          <section className="site-container content-section">
-            <div className="section-heading">
-              <div>
-                <span className="section-label">HANDPICKED FOR YOU</span>
-                <h2>Spaces worth calling <em>home.</em></h2>
-                <p>Explore available rooms and find your perfect fit.</p>
-              </div>
-
-              <button
-                className="link-arrow"
-                onClick={() => {
-                  loadRooms();
-                  navigate("explore");
-                }}
-              >
-                View all stays <ArrowRight size={18} />
+              <button className="link-arrow" onClick={() => { loadRooms(); navigate("explore"); }}>
+                Open full explorer <ArrowRight size={18} />
               </button>
+            </div>
+
+            <div className="stay-type-rail">
+              {[
+                ["single", "Private rhythm", "Single sharing"],
+                ["double", "Balanced living", "Double sharing"],
+                ["triple", "Social energy", "Triple sharing"]
+              ].map(([type, label, title]) => {
+                const count = rooms.filter((room) => room.room_type === type).length;
+                return (
+                  <button
+                    className="stay-type-card"
+                    key={type}
+                    onClick={() => applyExploreFilters({ ...filters, room_type: type })}
+                  >
+                    <span>{label}</span>
+                    <strong>{title}</strong>
+                    <small>
+                      {roomsReady ? count : "..."} {count === 1 ? "room" : "rooms"} available <ArrowUpRight size={15} />
+                    </small>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="stays-grid">
               {rooms.slice(0, 3).map((room) => (
-                <RoomCard
-                  key={room.id}
-                  room={room}
-                  onBook={bookRoom}
-                  onView={viewRoom}
-                />
+                <RoomCard key={room.id} room={room} onBook={bookRoom} onView={viewRoom} />
               ))}
             </div>
-
-            {rooms.length === 0 && (
-              <p className="empty-message">
-                No properties yet. Add rooms through Django Admin.
-              </p>
+            {!roomsReady && (
+              <div className="dynamic-empty">
+                <span className="loading-spinner" />
+                <strong>Refreshing live availability...</strong>
+              </div>
+            )}
+            {roomsReady && rooms.length === 0 && (
+              <div className="dynamic-empty">
+                <BedDouble size={30} />
+                <strong>Your next stay is being prepared.</strong>
+                <span>No available rooms are published yet. Check back soon or contact support.</span>
+              </div>
             )}
           </section>
 
-          <section className="home-cta-section">
-            <div className="site-container home-cta">
+          <section className="site-container location-radar reveal-on-scroll">
+            <div className="section-heading">
               <div>
-                <span className="section-label">READY WHEN YOU ARE</span>
-                <h2>Your next room search starts <em>here.</em></h2>
-                <p>Browse what is available today or let PGyora narrow it down around your preferences.</p>
-              </div>
-              <div className="home-cta-actions">
-                <button className="coral-btn" onClick={() => navigate("explore")}>
-                  Browse available rooms <ArrowRight size={17} />
-                </button>
-                <button className="light-btn" onClick={() => navigate("finder")}>
-                  Start a smart match <Sparkles size={17} />
-                </button>
+                <span className="section-label">START WITH A PLACE</span>
+                <h2>Explore by <em>location.</em></h2>
+                <p>Jump into areas where rooms are currently available.</p>
               </div>
             </div>
+            <div className="location-radar-grid">
+              {Array.from(new Set(rooms.map((room) => room.location).filter(Boolean)))
+                .slice(0, 4)
+                .map((location, index) => {
+                  const locationRooms = rooms.filter((room) => room.location === location);
+                  return (
+                    <button
+                      className="location-radar-card"
+                      key={location}
+                      onClick={() => applyExploreFilters({ ...filters, location })}
+                    >
+                      <span className="location-orbit-number">0{index + 1}</span>
+                      <MapPin size={19} />
+                      <strong>{location}</strong>
+                      <small>{locationRooms.length} available {locationRooms.length === 1 ? "room" : "rooms"} <ArrowUpRight size={14} /></small>
+                    </button>
+                  );
+                })}
+              {!roomsReady && (
+                <div className="location-radar-empty">Loading live locations...</div>
+              )}
+              {roomsReady && rooms.length === 0 && (
+                <div className="location-radar-empty">Locations will appear here as rooms are published.</div>
+              )}
+            </div>
+          </section>
+
+          <section id="why-pgyora" className="signal-section reveal-on-scroll">
+            <div className="site-container signal-layout">
+              <div>
+                <span className="section-label">WHY PGYORA</span>
+                <h2>Less noise. <em>Better decisions.</em></h2>
+                <p>PGyora brings discovery, requests and support into one calm, transparent experience.</p>
+              </div>
+              <div className="signal-benefits">
+                <article><span>01</span><Search size={19} /><div><strong>Search around your life</strong><small>Use location, budget, sharing and facilities together.</small></div></article>
+                <article><span>02</span><ShieldCheck size={19} /><div><strong>See what is actually available</strong><small>Occupied rooms leave the public discovery flow.</small></div></article>
+                <article><span>03</span><CalendarDays size={19} /><div><strong>Stay in control after requesting</strong><small>Follow status and support from your dashboard.</small></div></article>
+              </div>
+            </div>
+          </section>
+
+          <section id="how-it-works" className="site-container home-process-section reveal-on-scroll">
+            <div className="section-heading">
+              <div><span className="section-label">THE PGYORA FLOW</span><h2>From search to <em>settled.</em></h2></div>
+              <p className="section-heading-note">A simple path designed around real student decisions.</p>
+            </div>
+            <div className="process-grid">
+              <article className="process-card"><span className="process-number">01</span><MapPin size={22} /><h3>Choose your area</h3><p>Start with the location that fits your commute and everyday routine.</p></article>
+              <article className="process-card featured"><span className="process-number">02</span><Search size={22} /><h3>Compare with context</h3><p>See pricing, capacity, facilities and availability before requesting.</p></article>
+              <article className="process-card"><span className="process-number">03</span><CheckCircle2 size={22} /><h3>Move forward clearly</h3><p>Track your request, approval and support journey in one place.</p></article>
+            </div>
+          </section>
+
+          <section className="orbit-finder-preview reveal-on-scroll">
+            <div className="site-container orbit-finder-layout">
+              <div className="finder-preview-visual"><span>PG</span><i /><i /><i /></div>
+              <div><span className="section-label">SMART FINDER</span><h2>Let your preferences do the <em>shortlisting.</em></h2><p>Tell us your location, budget, sharing style and must-have facilities. PGyora explains why each result fits.</p><button className="coral-btn" onClick={() => navigate("finder")}>Build my shortlist <Sparkles size={17} /></button></div>
+            </div>
+          </section>
+
+          <section className="home-cta-section reveal-on-scroll">
+            <div className="site-container home-cta"><div><span className="section-label">YOUR NEXT MOVE</span><h2>Ready to find a place that feels <em>right?</em></h2><p>Explore current availability or start with a guided match.</p></div><div className="home-cta-actions"><button className="coral-btn" onClick={() => navigate("explore")}>Browse live rooms <ArrowRight size={17} /></button><button className="light-btn" onClick={() => navigate("contact")}>Talk to support <Mail size={17} /></button></div></div>
           </section>
 
         </>
@@ -1199,6 +1235,12 @@ const saveProfile = async (event) => {
               }
             />
 
+            <input
+              placeholder="Facilities (e.g. WiFi, AC)"
+              value={filters.facilities}
+              onChange={(event) => setFilters({ ...filters, facilities: event.target.value })}
+            />
+
             <select
               value={filters.room_type}
               onChange={(event) =>
@@ -1214,6 +1256,17 @@ const saveProfile = async (event) => {
               <option value="triple">Triple sharing</option>
             </select>
 
+            <select
+              value={filters.sort}
+              onChange={(event) => setFilters({ ...filters, sort: event.target.value })}
+              aria-label="Sort rooms"
+            >
+              <option value="">Sort by</option>
+              <option value="price_asc">Price: Low to high</option>
+              <option value="price_desc">Price: High to low</option>
+              <option value="availability">Most available beds</option>
+            </select>
+
             <button className="dark-btn">
               <Search size={18} />
               Search stays
@@ -1225,7 +1278,7 @@ const saveProfile = async (event) => {
             <button onClick={() => applyExploreFilters({ ...filters, room_type: "single" })}>Single sharing</button>
             <button onClick={() => applyExploreFilters({ ...filters, room_type: "double" })}>Double sharing</button>
             <button onClick={() => applyExploreFilters({ ...filters, max_price: "10000" })}>Under ₹10,000</button>
-            <button onClick={() => applyExploreFilters({ location: "", max_price: "", room_type: "" })}>Clear all</button>
+            <button onClick={() => applyExploreFilters({ location: "", max_price: "", room_type: "", facilities: "", sort: "" })}>Clear all</button>
           </div>
 
           <div className="results-heading">
@@ -1363,94 +1416,120 @@ const saveProfile = async (event) => {
             <div className="finder-card">
               <div className="finder-title">
                 <div>
-                  <h2>Your room preferences</h2>
-                  <p>Build your shortlist in under a minute.</p>
+                  <div className="finder-progress-label">
+                    <span>Step {finderStep} of 4</span>
+                    <button type="button" onClick={resetFinder}>Reset</button>
+                  </div>
+                  <div className="finder-progress" aria-label={`Smart Finder step ${finderStep} of 4`}>
+                    {[1, 2, 3, 4].map((step) => (
+                      <span className={step <= finderStep ? "complete" : ""} key={step} />
+                    ))}
+                  </div>
+                  <h2>
+                    {finderStep === 1 && "Where do you want to live?"}
+                    {finderStep === 2 && "What monthly budget works for you?"}
+                    {finderStep === 3 && "How would you like to share?"}
+                    {finderStep === 4 && "What should your room include?"}
+                  </h2>
+                  <p>
+                    {finderStep === 1 && "Start with the location that fits your daily routine."}
+                    {finderStep === 2 && "We will only recommend rooms within your range."}
+                    {finderStep === 3 && "Choose the room style that feels right."}
+                    {finderStep === 4 && "Select the facilities you do not want to compromise on."}
+                  </p>
                 </div>
               </div>
 
               <form className="finder-form" onSubmit={findRooms}>
-              <label>
-                Preferred location
-                <input
-                  placeholder="e.g. Phagwara"
-                  value={finder.location}
-                  onChange={(event) =>
-                    setFinder({
-                      ...finder,
-                      location: event.target.value
-                    })
-                  }
-                />
-              </label>
+                {finderStep === 1 && (
+                  <label className="finder-step-field">
+                    Preferred location
+                    <input
+                      autoFocus
+                      required
+                      placeholder="e.g. Phagwara"
+                      value={finder.location}
+                      onChange={(event) => setFinder({ ...finder, location: event.target.value })}
+                    />
+                  </label>
+                )}
 
-              <label>
-                Maximum monthly budget
-                <input
-                  type="number"
-                  placeholder="e.g. 8000"
-                  value={finder.max_price}
-                  onChange={(event) =>
-                    setFinder({
-                      ...finder,
-                      max_price: event.target.value
-                    })
-                  }
-                />
-              </label>
+                {finderStep === 2 && (
+                  <label className="finder-step-field">
+                    Maximum monthly budget
+                    <input
+                      autoFocus
+                      required
+                      min="1"
+                      type="number"
+                      placeholder="e.g. 8000"
+                      value={finder.max_price}
+                      onChange={(event) => setFinder({ ...finder, max_price: event.target.value })}
+                    />
+                  </label>
+                )}
 
-              <label>
-                Sharing preference
-                <select
-                  value={finder.room_type}
-                  onChange={(event) =>
-                    setFinder({
-                      ...finder,
-                      room_type: event.target.value
-                    })
-                  }
-                >
-                  <option value="">Any type</option>
-                  <option value="single">Single</option>
-                  <option value="double">Double</option>
-                  <option value="triple">Triple</option>
-                </select>
-              </label>
+                {finderStep === 3 && (
+                  <label className="finder-step-field">
+                    Sharing preference
+                    <select
+                      autoFocus
+                      value={finder.room_type}
+                      onChange={(event) => setFinder({ ...finder, room_type: event.target.value })}
+                    >
+                      <option value="">Any type</option>
+                      <option value="single">Single sharing</option>
+                      <option value="double">Double sharing</option>
+                      <option value="triple">Triple sharing</option>
+                    </select>
+                  </label>
+                )}
 
-              <label className="finder-facilities">
-                Must-have facilities
-                <div className="facility-chips">
-                  {["WiFi", "AC", "Power backup", "Laundry", "Food"].map((facility) => {
-                    const selected = finder.facilities
-                      .split(",")
-                      .map((item) => item.trim())
-                      .includes(facility);
-                    return (
-                      <button
-                        type="button"
-                        className={selected ? "facility-chip active" : "facility-chip"}
-                        key={facility}
-                        onClick={() => toggleFinderFacility(facility)}
-                      >
-                        {facility} {selected && <CheckCircle2 size={14} />}
-                      </button>
-                    );
-                  })}
+                {finderStep === 4 && (
+                  <label className="finder-facilities finder-step-field">
+                    Must-have facilities
+                    <div className="facility-chips">
+                      {["WiFi", "AC", "Power backup", "Laundry", "Food"].map((facility) => {
+                        const selected = finder.facilities
+                          .split(",")
+                          .map((item) => item.trim())
+                          .includes(facility);
+                        return (
+                          <button
+                            type="button"
+                            className={selected ? "facility-chip active" : "facility-chip"}
+                            key={facility}
+                            onClick={() => toggleFinderFacility(facility)}
+                          >
+                            {facility} {selected && <CheckCircle2 size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input
+                      placeholder="Or type another facility"
+                      value={finder.facilities}
+                      onChange={(event) => setFinder({ ...finder, facilities: event.target.value })}
+                    />
+                  </label>
+                )}
+
+                <div className="finder-actions">
+                  {finderStep > 1 && (
+                    <button type="button" className="light-btn" onClick={() => setFinderStep((step) => step - 1)}>
+                      Back
+                    </button>
+                  )}
+                  {finderStep < 4 ? (
+                    <button type="button" className="coral-btn" onClick={advanceFinder}>
+                      Continue <ArrowRight size={18} />
+                    </button>
+                  ) : (
+                    <button className="coral-btn">
+                      Find matching rooms <ArrowRight size={18} />
+                    </button>
+                  )}
                 </div>
-                <input
-                  placeholder="Or type another facility"
-                  value={finder.facilities}
-                  onChange={(event) =>
-                    setFinder({
-                      ...finder,
-                      facilities: event.target.value
-                    })
-                  }
-                />
-              </label>
-
-              <button className="coral-btn">
-                Find matching rooms <ArrowRight size={18} />
-              </button>
               </form>
             </div>
           </div>
@@ -1512,8 +1591,14 @@ const saveProfile = async (event) => {
 
               {dashboardTab === "bookings" && (
                 <>
+                  <div className="dashboard-quick-actions">
+                    <button onClick={() => navigate("explore")}><Search size={16} /> Browse rooms</button>
+                    <button onClick={() => navigate("finder")}><Sparkles size={16} /> Find my match</button>
+                    <button onClick={() => setDashboardTab("complaints")}><Wrench size={16} /> Get support</button>
+                  </div>
                   <div className="dashboard-stats">
                     <div className="stat-card"><span className="stat-icon coral"><CalendarDays size={20} /></span><strong>{bookings.length}</strong><small>Total requests</small></div>
+                    <div className="stat-card"><span className="stat-icon gold"><Clock size={20} /></span><strong>{bookings.filter((item) => item.status === "pending").length}</strong><small>Pending requests</small></div>
                     <div className="stat-card"><span className="stat-icon green"><CheckCircle2 size={20} /></span><strong>{bookings.filter((item) => item.status === "approved").length}</strong><small>Approved stays</small></div>
                     <div className="stat-card"><span className="stat-icon gold"><Wrench size={20} /></span><strong>{complaints.filter((item) => item.status !== "resolved").length}</strong><small>Open complaints</small></div>
                   </div>
@@ -1529,6 +1614,11 @@ const saveProfile = async (event) => {
                         </strong>
 
                         <p>Status: <span className={`status-pill ${booking.status}`}>{booking.status}</span></p>
+                        {booking.booking_date && (
+                          <small className="booking-date">
+                            Requested {new Date(booking.booking_date).toLocaleDateString()}
+                          </small>
+                        )}
                       </div>
 
                       <div className="dashboard-actions">
