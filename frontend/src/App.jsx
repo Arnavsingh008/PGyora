@@ -167,6 +167,16 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const navigateToHomeSection = (sectionId) => {
+    navigate("home");
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 100);
+  };
+
   useEffect(() => {
     sessionStorage.setItem("pgyora_page", JSON.stringify(page));
   }, [page]);
@@ -392,6 +402,27 @@ const saveProfile = async (event) => {
     navigate("explore");
   };
 
+  const applyExploreFilters = async (nextFilters) => {
+    setFilters(nextFilters);
+    await loadRooms(nextFilters);
+    navigate("explore");
+  };
+
+  const toggleFinderFacility = (facility) => {
+    const selected = finder.facilities
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const nextFacilities = selected.includes(facility)
+      ? selected.filter((item) => item !== facility)
+      : [...selected, facility];
+
+    setFinder({
+      ...finder,
+      facilities: nextFacilities.join(", ")
+    });
+  };
+
   const findRooms = async (event) => {
     event.preventDefault();
 
@@ -503,6 +534,12 @@ const saveProfile = async (event) => {
             <button onClick={() => navigate("finder")}>
               Smart Finder
             </button>
+            <button onClick={() => navigateToHomeSection("how-it-works")}>
+              How it works
+            </button>
+            <button onClick={() => navigateToHomeSection("why-pgyora")}>
+              Why PGyora
+            </button>
           </nav>
 
           <div className="navbar-actions">
@@ -569,14 +606,13 @@ const saveProfile = async (event) => {
                 </div>
 
                 <h1>
-                  Your next chapter deserves a{" "}
-                  <em>better place.</em>
+                  Find a place that fits your{" "}
+                  <em>next chapter.</em>
                 </h1>
 
                 <p>
-                  Thoughtfully chosen PGs and co-living spaces.
-                  Discover a room you'll love, without the
-                  endless searching.
+                  Compare real rooms, understand what is included,
+                  and send a booking request with confidence.
                 </p>
 
                 <form className="hero-search" onSubmit={searchRooms}>
@@ -617,6 +653,31 @@ const saveProfile = async (event) => {
                     </small>
                   </div>
                 </div>
+
+                <div className="hero-quick-links">
+                  <button onClick={() => navigate("explore")}>
+                    Browse live rooms <ArrowRight size={14} />
+                  </button>
+                  <button onClick={() => navigate("finder")}>
+                    Find my best match <Sparkles size={14} />
+                  </button>
+                </div>
+
+                <div className="hero-metrics">
+                  <div>
+                    <strong>{rooms.length || "—"}</strong>
+                    <span>rooms to explore</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {rooms.reduce(
+                        (total, room) => total + Number(room.available_beds || 0),
+                        0
+                      ) || "—"}
+                    </strong>
+                    <span>beds currently open</span>
+                  </div>
+                </div>
               </div>
 
               <div className="hero-photo">
@@ -651,9 +712,69 @@ const saveProfile = async (event) => {
           <section className="trust-bar">
             <div className="site-container trust-items">
               <span><ShieldCheck /> Safe booking requests</span>
-              <span><Sparkles /> Smart room matching</span>
-              <span><BedDouble /> Real availability</span>
-              <span><Wrench /> Tenant support</span>
+              <span><Sparkles /> Personalised matching</span>
+              <span><BedDouble /> Live room availability</span>
+              <span><Wrench /> Support after move-in</span>
+            </div>
+          </section>
+
+          <section id="why-pgyora" className="site-container home-value-section">
+            <div className="section-heading">
+              <div>
+                <span className="section-label">A BETTER WAY TO FIND A PG</span>
+                <h2>Everything you need to choose <em>well.</em></h2>
+              </div>
+              <p className="section-heading-note">
+                Less guesswork. More confidence before you move in.
+              </p>
+            </div>
+
+            <div className="value-grid">
+              <article className="value-card">
+                <span className="value-icon coral"><Search size={21} /></span>
+                <h3>Search your way</h3>
+                <p>Filter by location, budget, sharing type and the facilities that matter to you.</p>
+              </article>
+              <article className="value-card">
+                <span className="value-icon green"><ShieldCheck size={21} /></span>
+                <h3>Know before you request</h3>
+                <p>See room details, availability, pricing and included facilities in one clear view.</p>
+              </article>
+              <article className="value-card">
+                <span className="value-icon gold"><CalendarDays size={21} /></span>
+                <h3>Manage your stay</h3>
+                <p>Track booking requests, approvals and support complaints from your dashboard.</p>
+              </article>
+            </div>
+          </section>
+
+          <section id="how-it-works" className="site-container home-process-section">
+            <div className="section-heading">
+              <div>
+                <span className="section-label">FROM SEARCH TO MOVE-IN</span>
+                <h2>Make a confident decision in <em>three steps.</em></h2>
+              </div>
+            </div>
+
+            <div className="process-grid">
+              <article className="process-card">
+                <span className="process-number">01</span>
+                <MapPin size={22} />
+                <h3>Choose your area</h3>
+                <p>Start with the location, commute or neighbourhood that works for your everyday life.</p>
+              </article>
+              <article className="process-card featured">
+                <span className="process-number">02</span>
+                <Search size={22} />
+                <h3>Compare real options</h3>
+                <p>Review pricing, sharing type, facilities and available beds before you send a request.</p>
+              </article>
+              <article className="process-card">
+                <span className="process-number">03</span>
+                <CheckCircle2 size={22} />
+                <h3>Request with clarity</h3>
+                <p>Track your booking status and keep your accommodation journey organised in one place.</p>
+              </article>
             </div>
           </section>
 
@@ -694,50 +815,20 @@ const saveProfile = async (event) => {
             )}
           </section>
 
-          <section className="smart-section">
-            <div className="site-container smart-layout">
-              <div className="smart-art">
-                <div className="smart-circle">
-                  <Sparkles size={48} />
-                </div>
-                <span className="smart-chip chip-one">
-                  Your budget ✓
-                </span>
-                <span className="smart-chip chip-two">
-                  Your location ✓
-                </span>
-                <span className="smart-chip chip-three">
-                  Your facilities ✓
-                </span>
+          <section className="home-cta-section">
+            <div className="site-container home-cta">
+              <div>
+                <span className="section-label">READY WHEN YOU ARE</span>
+                <h2>Your next room search starts <em>here.</em></h2>
+                <p>Browse what is available today or let PGyora narrow it down around your preferences.</p>
               </div>
-
-              <div className="smart-copy">
-                <span className="section-label">
-                  MEET YOUR SMART ROOM FINDER
-                </span>
-
-                <h2>
-                  Less scrolling.
-                  <br />
-                  <em>More belonging.</em>
-                </h2>
-
-                <p>
-                  Tell us your budget, preferred location and
-                  must-have facilities. Our smart matching
-                  system recommends available rooms for you.
-                </p>
-
-                <button
-                  className="coral-btn"
-                  onClick={() => navigate("finder")}
-                >
-                  Find my match <Sparkles size={18} />
+              <div className="home-cta-actions">
+                <button className="coral-btn" onClick={() => navigate("explore")}>
+                  Browse available rooms <ArrowRight size={17} />
                 </button>
-
-                <small>
-                  Powered by transparent, rule-based recommendations.
-                </small>
+                <button className="light-btn" onClick={() => navigate("finder")}>
+                  Start a smart match <Sparkles size={17} />
+                </button>
               </div>
             </div>
           </section>
@@ -946,11 +1037,11 @@ const saveProfile = async (event) => {
               DISCOVER YOUR NEXT STAY
             </span>
 
-            <h1>Find your kind of <em>home.</em></h1>
+            <h1>Browse rooms that fit <em>your life.</em></h1>
 
             <p>
-              Beautiful spaces, practical choices,
-              and a stay that suits you.
+              Explore live availability and narrow your choices
+              with practical filters.
             </p>
           </div>
 
@@ -999,8 +1090,19 @@ const saveProfile = async (event) => {
             </button>
           </form>
 
+          <div className="explore-quick-filters">
+            <span>Quick filters</span>
+            <button onClick={() => applyExploreFilters({ ...filters, room_type: "single" })}>Single sharing</button>
+            <button onClick={() => applyExploreFilters({ ...filters, room_type: "double" })}>Double sharing</button>
+            <button onClick={() => applyExploreFilters({ ...filters, max_price: "10000" })}>Under ₹10,000</button>
+            <button onClick={() => applyExploreFilters({ location: "", max_price: "", room_type: "" })}>Clear all</button>
+          </div>
+
           <div className="results-heading">
-            <h2>Available spaces ({rooms.length})</h2>
+            <div>
+              <h2>Available spaces ({rooms.length})</h2>
+              <p>Only rooms with current availability are shown.</p>
+            </div>
 
             <button onClick={() => navigate("finder")}>
               <Sparkles size={17} />
@@ -1112,21 +1214,31 @@ const saveProfile = async (event) => {
             </p>
           </div>
 
-          <div className="finder-card">
-            <div className="finder-title">
+          <div className="finder-layout">
+            <aside className="finder-guide">
               <div className="finder-icon">
                 <Sparkles size={30} />
               </div>
+              <span className="section-label">HOW IT WORKS</span>
+              <h2>A shortlist made for <em>you.</em></h2>
+              <p>Share a few preferences and PGyora will rank available rooms around them.</p>
+              <ol>
+                <li><span>1</span>Tell us where you want to live.</li>
+                <li><span>2</span>Set your budget and sharing style.</li>
+                <li><span>3</span>Choose the facilities you need.</li>
+              </ol>
+              <small>Recommendations are transparent and based on your selected preferences.</small>
+            </aside>
 
-              <div>
-                <h2>Your room preferences</h2>
-                <p>
-                  Find available rooms matching your lifestyle.
-                </p>
+            <div className="finder-card">
+              <div className="finder-title">
+                <div>
+                  <h2>Your room preferences</h2>
+                  <p>Build your shortlist in under a minute.</p>
+                </div>
               </div>
-            </div>
 
-            <form className="finder-form" onSubmit={findRooms}>
+              <form className="finder-form" onSubmit={findRooms}>
               <label>
                 Preferred location
                 <input
@@ -1174,10 +1286,28 @@ const saveProfile = async (event) => {
                 </select>
               </label>
 
-              <label>
+              <label className="finder-facilities">
                 Must-have facilities
+                <div className="facility-chips">
+                  {["WiFi", "AC", "Power backup", "Laundry", "Food"].map((facility) => {
+                    const selected = finder.facilities
+                      .split(",")
+                      .map((item) => item.trim())
+                      .includes(facility);
+                    return (
+                      <button
+                        type="button"
+                        className={selected ? "facility-chip active" : "facility-chip"}
+                        key={facility}
+                        onClick={() => toggleFinderFacility(facility)}
+                      >
+                        {facility} {selected && <CheckCircle2 size={14} />}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
-                  placeholder="WiFi, AC, Bed"
+                  placeholder="Or type another facility"
                   value={finder.facilities}
                   onChange={(event) =>
                     setFinder({
@@ -1191,7 +1321,8 @@ const saveProfile = async (event) => {
               <button className="coral-btn">
                 Find matching rooms <ArrowRight size={18} />
               </button>
-            </form>
+              </form>
+            </div>
           </div>
         </main>
       )}
@@ -1504,7 +1635,7 @@ const saveProfile = async (event) => {
       )}
 
       {/* FOOTER */}
-      <footer className="site-footer">
+      <footer id="support" className="site-footer">
         <div className="site-container footer-content">
           <div>
             <h3>PGyora.</h3>
