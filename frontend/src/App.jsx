@@ -365,6 +365,8 @@ const handleAuth = async (event) => {
   setMessage("");
 
   try {
+    await initialiseCsrf();
+
     const endpoint =
       page === "signup"
         ? "/api/accounts/register/"
